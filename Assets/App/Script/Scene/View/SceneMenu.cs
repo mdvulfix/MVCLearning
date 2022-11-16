@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class SceneMenu : SceneView, IScene
+public class SceneMenu : SceneView, ISceneView
 {
 
     [SerializeField]
@@ -14,6 +14,8 @@ public class SceneMenu : SceneView, IScene
 
 
     private SceneController m_Controller;
+
+    public SceneIndex SceneIndex => SceneIndex.Menu;
 
     public event Action<StateIndex> StateRequired;
 

@@ -4,14 +4,19 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class SceneLevel : SceneView, IScene
+public class SceneLevel : SceneView, ISceneView 
 {
+
+    
+
     [SerializeField]
     private Button m_Button;
     private IButton m_Menu;
 
     private SceneController m_Controller;
 
+    public SceneIndex SceneIndex => SceneIndex.Level;
+    
     public event Action<StateIndex> StateRequired;
 
 

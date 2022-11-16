@@ -11,8 +11,3 @@ public class SceneModel : Model
 
 }
 
-public interface IScene
-{
-    event Action<StateIndex> StateRequired;
-    void Activate(bool active);
-}
