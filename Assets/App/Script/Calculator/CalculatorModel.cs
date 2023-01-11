@@ -75,12 +75,12 @@ where TActionInfo: IActionInfo
 
 public struct NumberInfo: IActionInfo
 {
-    public NumberInfo(string number)
+    public NumberInfo(double number)
     {
         Number = number;
     }
 
-    public string Number {get; private set; }
+    public double Number {get; private set; }
 }
 
 public struct OperationInfo: IActionInfo

@@ -22,7 +22,7 @@ public class Session : MonoBehaviour
 
     private void OnEnable() 
     {
-        View.ViewLoaded += OnViewLoaded;
+        //View.ViewLoaded += OnViewLoaded;
     }
 
     private void OnDisable() 
@@ -31,7 +31,7 @@ public class Session : MonoBehaviour
         if(m_SceneView != null)
             m_SceneView.StateRequired += OnStateRequired;
 
-        View.ViewLoaded -= OnViewLoaded;
+       //View.ViewLoaded -= OnViewLoaded;
     }
 
     private void Start()

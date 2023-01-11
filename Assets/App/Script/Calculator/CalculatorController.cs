@@ -1,15 +1,25 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class CalculatorController: IController
 {
+    
+    private readonly string m_DisplayNumberFormat = "# ### ### ##0.00";
+    private readonly string m_DisplayBlank = "";
+    private readonly string m_DisplayBlankSign = "|";
+    private bool m_DisplayIsNotEmpty;
+    
     private ICalculatorView m_View;
     private ICalculatorModel m_Model;
 
-    private string m_FirstNumber;
-    private string m_LastNumber;
+    private double m_FirstNumber;
+    private double m_LastNumber;
     private OperationIndex m_OperationIndex;
-    private bool m_IsOperationDefined;
+    private double m_Result;
+
+    public event Action<string> DisplayUpdateRequired;
 
     public CalculatorController(ICalculatorView view)
     {
@@ -29,6 +39,8 @@ public class CalculatorController: IController
         {
             button.ButtonClicked += OnButtonClicked;
         }
+
+        DisplayClear();
     }
     
     public void Dispose()
@@ -37,13 +49,15 @@ public class CalculatorController: IController
         {
             button.ButtonClicked -= OnButtonClicked;
         }
+
+        
     } 
 
 
     private void OnButtonClicked(IActionInfo info)
     {
         if (info is NumberInfo)
-            SetNumber(((NumberInfo)info).Number);
+            SetValue(((NumberInfo)info).Number);
         else if (info is OperationInfo)
             SetOperator(((OperationInfo)info).OperationIndex);
         else if (info is SystemActionInfo)
@@ -53,75 +67,158 @@ public class CalculatorController: IController
 
     }
 
-    private void SetNumber(string number)
+    private double Calculate(double a, double b, Func<double, double, double> func)
+    {
+        return m_Model.Calculate(a, b, func);
+    }
+    
+    private void SetValue(double value)
     { 
-        if(m_IsOperationDefined == false)
-            m_FirstNumber = number;
-        else
-            m_LastNumber= number;
+        DisplayFill(value);
     }
 
     private void SetOperator(OperationIndex index)
     { 
+        SetNumber(ref m_FirstNumber);
+        //DisplayClear();
         m_OperationIndex = index;
-        m_IsOperationDefined = true;
+
+        switch (m_OperationIndex)
+        {
+            case OperationIndex.Add:
+                //UpdateDisplay("+");
+                break;
+            case OperationIndex.Substract:
+                //UpdateDisplay("-");
+                break;
+            case OperationIndex.Multiply:
+                //UpdateDisplay("x");
+                break;
+            case OperationIndex.Devide:
+                //UpdateDisplay("/");
+                break;
+            
+            default:
+                throw new Exception("Operation info is not defined!");
+        }
     }
 
     private void Execute(SystemActionIndex index)
     { 
-        if (index == SystemActionIndex.Calculate)
-            if(!string.IsNullOrEmpty(m_FirstNumber) && !string.IsNullOrEmpty(m_LastNumber))
-                if(m_IsOperationDefined && m_OperationIndex != OperationIndex.None)
+        SetNumber(ref m_LastNumber);
+        
+
+        switch (index) 
+        {
+            case SystemActionIndex.Calculate:
+                
+                switch (m_OperationIndex)
                 {
-                    var firstNumberValue = Convert.ToDouble(m_FirstNumber);
-                    var lastNumberValue = Convert.ToDouble(m_LastNumber);
-
-                    switch (m_OperationIndex)
-                    {
-                        case OperationIndex.Add:
-                            Calculate(firstNumberValue, lastNumberValue, (a, b)=> Math.Add(firstNumberValue, lastNumberValue));
-                            break;
-                        case OperationIndex.Substract:
-                            Calculate(firstNumberValue, lastNumberValue, (a, b)=> Math.Substract(firstNumberValue, lastNumberValue));
-                            break;
-                        case OperationIndex.Multiply:
-                            Calculate(firstNumberValue, lastNumberValue, (a, b)=> Math.Multiply(firstNumberValue, lastNumberValue));
-                            break;
-                        case OperationIndex.Devide:
-                            Calculate(firstNumberValue, lastNumberValue, (a, b)=> Math.Devide(firstNumberValue, lastNumberValue));
-                            break;
-                        
-                        default:
-                            throw new Exception("Operation info is not defined!");
-
-                    }
-
-                    Clear();
+                    case OperationIndex.Add:
+                        m_Result = Calculate(m_FirstNumber, m_LastNumber, (a, b)=> Math.Add(m_FirstNumber, m_LastNumber));
+                        break;
+                    case OperationIndex.Substract:
+                        m_Result = Calculate(m_FirstNumber, m_LastNumber, (a, b)=> Math.Substract(m_FirstNumber, m_LastNumber));
+                        break;
+                    case OperationIndex.Multiply:
+                        m_Result = Calculate(m_FirstNumber, m_LastNumber, (a, b)=> Math.Multiply(m_FirstNumber, m_LastNumber));
+                        break;
+                    case OperationIndex.Devide:
+                        m_Result = Calculate(m_FirstNumber, m_LastNumber, (a, b)=> Math.Devide(m_FirstNumber, m_LastNumber));
+                        break;
+                    
+                    default:
+                        throw new Exception("Operation is not defined!");
                 }
-                    
-                    
-                    
-        
-        
-        
 
+                DisplayClear();
+                DisplayFill(m_Result);
+                Reset();
 
-
+                break;
+            
+            case SystemActionIndex.Clear:
+                
+                DisplayClear();
+                Reset();
+                break;
+            
+            default:
+                throw new Exception("System action is not defined!");
+        
+        }
     }
 
-    private void Calculate(double a, double b, Func<double, double, double> func)
+    private void Reset()
     {
-        m_Model.Calculate(a, b, func);
-    }
-
-    private void Clear()
-    {
-        m_FirstNumber = null;
-        m_LastNumber = null;
+        m_FirstNumber = 0;
+        m_LastNumber = 0;
         m_OperationIndex = OperationIndex.None;
-        m_IsOperationDefined = false;
     }
 
+    private void SetNumber(ref double number)
+    {
+        number = Convert.ToDouble(m_View.Display.text);
+    }
+    
+    
+    
+    private void DisplayFill (double value)
+    {
+        //m_DisplayIsNotEmpty = true;
+        //StopCoroutine(DisplayUpdateEmptyValue());
+        
+        var displayTextValue = m_View.Display.text;
+        
+        if(displayTextValue == m_DisplayBlank || displayTextValue == m_DisplayBlankSign)
+        {
+            displayTextValue = value.ToString(m_DisplayNumberFormat);
+            DisplayUpdateRequired?.Invoke(displayTextValue);
+            return;
+        }
+        
+        
+        if(Convert.ToDouble(displayTextValue) == m_FirstNumber || Convert.ToDouble(displayTextValue) == m_LastNumber || Convert.ToDouble(displayTextValue) == m_Result)
+        {
+            DisplayClear();
+            displayTextValue = value.ToString(m_DisplayNumberFormat);
+            DisplayUpdateRequired?.Invoke(displayTextValue);
+            return;
+        }
+        
+        displayTextValue = (Convert.ToDouble(displayTextValue) * 10 + value).ToString(m_DisplayNumberFormat);
+        DisplayUpdateRequired?.Invoke(displayTextValue);
+    
+    }
+    
+    private void DisplayClear()
+    {
+        DisplayUpdateRequired?.Invoke(m_DisplayBlank);
+    }
+
+
+
+    private IEnumerator DisplayUpdateEmptyValue()
+    {
+        while(true)
+        {
+            
+            //if(m_DisplayIsNotEmpty)
+            //    yield return null;
+
+            //yield return new WaitForSeconds(1);
+            //m_Display.text = "|";
+            
+            //if(m_DisplayIsNotEmpty)
+            //    yield return null;
+
+            //yield return new WaitForSeconds(1);
+            //m_Display.text = "";
+
+            //if(m_DisplayIsNotEmpty)
+            //    yield return null;
+        } 
+    }
 
 }
 

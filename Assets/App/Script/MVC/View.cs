@@ -2,24 +2,25 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public abstract class View : MonoBehaviour
 {
 
-    private static Dictionary<int, IView> Views = new Dictionary<int, IView>(100);
+    private static Dictionary<int, ISkin> m_Skins = new Dictionary<int, ISkin>(100);
 
-    public static event Action<IView> ViewLoaded;
-    public static event Action<IView> ViewUnloaded;
+    protected List<IButton> m_Buttons;
+    
+    public static event Action<ISkin> SkinLoaded;
+    public static event Action<ISkin> SkinUnloaded;
 
-
-
-    protected static void Set(IView view)
+    private void SkinSet(ISkin skin)
     {
         try
         {
-            var code = view.GetHashCode();
-            Views.Add(code, view);
-            ViewLoaded?.Invoke(view);
+            var code = skin.GetHashCode();
+            m_Skins.Add(code, skin);
+            SkinLoaded?.Invoke(skin);
         }
         catch (Exception exception)
         {
@@ -28,13 +29,13 @@ public abstract class View : MonoBehaviour
         }
     }
 
-    protected static void Remove(IView view)
+    private void SkinRemove(ISkin skin)
     { 
         try
         {
-            var code = view.GetHashCode();
-            Views.Remove(code);
-            ViewUnloaded?.Invoke(view);
+            var code = skin.GetHashCode();
+            m_Skins.Remove(code);
+            SkinUnloaded?.Invoke(skin);
         }
         catch (Exception exception)
         {
@@ -43,6 +44,16 @@ public abstract class View : MonoBehaviour
 
     }
 
+    protected virtual void Bind<TActionInfo> (Button button, TActionInfo info)
+    where TActionInfo : IActionInfo
+    {
+        m_Buttons.Add (new Button<TActionInfo> (button, info));
+
+    }
+}
+
+public interface ISkin
+{
 }
 
 public interface IView

@@ -42,15 +42,15 @@ public class SceneMenu : SceneView, ISceneView
 
     private void OnEnable() 
     {
-        m_Level.ButtonClicked += OnButtonClicked;
-        Set(this);
+        //m_Level.ButtonClicked += OnButtonClicked;
+        //Set(this);
         
     }
 
     private void OnDisable() 
     {
-        Remove(this);
-        m_Level.ButtonClicked -= OnButtonClicked;
+        //Remove(this);
+        //m_Level.ButtonClicked -= OnButtonClicked;
     }
 
 
