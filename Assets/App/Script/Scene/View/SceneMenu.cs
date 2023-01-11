@@ -4,58 +4,54 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class SceneMenu : SceneView, ISceneView
+public class SceneMenu : SceneView, ISceneView 
 {
-
-    [SerializeField]
-    private Button m_Button;
     
-    private IButton m_Level;
 
+    
+    [SerializeField]
+    private Button m_ButtonLevel;
+
+    private IButton m_Level;
 
     private SceneController m_Controller;
 
-    public SceneIndex SceneIndex => SceneIndex.Menu;
-
-    public event Action<StateIndex> StateRequired;
-
-    public override void SetController()
+    public void SetController()
     {
         m_Controller = new SceneController(this);
     }
 
 
+    private void OnClick()
+    {
+        Debug.Log("Level button clicked!");
+        
+    }
     
     private void Awake() 
     {
         
         SetController();
 
-        m_Level = new ButtonLevel(m_Button);
+        SceneIndex = SceneIndex.Menu;
+
+        m_Level = new ButtonLevel(m_ButtonLevel);
 
     }
 
 
     private void OnEnable() 
     {
-        m_Level.Clicked += OnButtonClicked;
+        m_Level.ButtonClicked += OnButtonClicked;
+        Set(this);
+        
     }
 
     private void OnDisable() 
     {
-        m_Level.Clicked -= OnButtonClicked;
+        Remove(this);
+        m_Level.ButtonClicked -= OnButtonClicked;
     }
 
-    private void OnButtonClicked(IActionInfo info)
-    {
-        if (info is StateInfo)
-        { 
-            var index = ((StateInfo)info).StateIndex;
-            StateRequired?.Invoke(index);
-        }
-        
-        
-    }
 
 }
-

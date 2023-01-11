@@ -7,21 +7,15 @@ using UnityEngine.UI;
 public class SceneLevel : SceneView, ISceneView 
 {
 
-    
-
     [SerializeField]
-    private Button m_Button;
+    private Button m_ButtonMenu;
+
+
     private IButton m_Menu;
 
     private SceneController m_Controller;
 
-    public SceneIndex SceneIndex => SceneIndex.Level;
-    
-    public event Action<StateIndex> StateRequired;
-
-
-
-    public override void SetController()
+    public void SetController()
     {
         m_Controller = new SceneController(this);
     }
@@ -38,29 +32,25 @@ public class SceneLevel : SceneView, ISceneView
         
         SetController();
 
-        m_Menu = new ButtonMenu(m_Button);
+        SceneIndex = SceneIndex.Level;
+
+        m_Menu = new ButtonMenu(m_ButtonMenu);
 
     }
 
 
     private void OnEnable() 
     {
-        m_Menu.Clicked += OnButtonClicked;
+        m_Menu.ButtonClicked += OnButtonClicked;
+        Set(this);
+        
     }
 
     private void OnDisable() 
     {
-        m_Menu.Clicked -= OnButtonClicked;
+        Remove(this);
+        m_Menu.ButtonClicked -= OnButtonClicked;
     }
 
-    private void OnButtonClicked(IActionInfo info)
-    {
-        if (info is StateInfo)
-        { 
-            var index = ((StateInfo)info).StateIndex;
-            StateRequired?.Invoke(index);
-        }
-        
-        
-    }
+
 }

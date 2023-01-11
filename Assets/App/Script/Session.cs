@@ -7,25 +7,31 @@ using UnityEngine.SceneManagement;
 public class Session : MonoBehaviour
 {
 
+
     private StateIndex m_State;
     private ISceneView m_SceneView;
-    private Dictionary<int, Scene> m_ScenesLoaded;
+    private Dictionary<int, Scene> m_Scenes;
+    private Dictionary<int, ISceneView> m_SceneViews;
 
     private void Awake()
     {
-        m_ScenesLoaded = new Dictionary<int, Scene>();
+        m_Scenes = new Dictionary<int, Scene>();
+        m_SceneViews = new Dictionary<int, ISceneView>();
     }
     
 
     private void OnEnable() 
     {
-        
+        View.ViewLoaded += OnViewLoaded;
     }
 
     private void OnDisable() 
     {
+        
         if(m_SceneView != null)
             m_SceneView.StateRequired += OnStateRequired;
+
+        View.ViewLoaded -= OnViewLoaded;
     }
 
     private void Start()
@@ -38,61 +44,46 @@ public class Session : MonoBehaviour
         
     }
 
-    [Obsolete]
-    private void SceneActivate(SceneIndex sceneIndex)
+
+    
+    private void SceneActivate(SceneIndex sceneIndex, Action callback)
+    {
+        StopCoroutine(SceneActivateAsync(sceneIndex, callback));
+        StartCoroutine(SceneActivateAsync(sceneIndex, callback));
+    }
+    
+    
+    private IEnumerator SceneActivateAsync(SceneIndex sceneIndex, Action callback)
     {
         var index = (int)sceneIndex;
-
-        if (m_ScenesLoaded.Count > 0)
-        {
-            foreach (var scene in m_ScenesLoaded.Values)
-            {
-                if (scene.buildIndex == index)
-                {
-                    SceneManager.SetActiveScene(scene);
-                    
-                    var rootObjects = scene.GetRootGameObjects();
-                    foreach (var obj in rootObjects)
-                    {
-                        if (obj.TryGetComponent<ISceneView>(out var sceneView))
-                        {
-                            if (m_SceneView != null)
-                            { 
-                                m_SceneView.StateRequired -= OnStateRequired;
-                                m_SceneView.Activate(false);
-                            }
-
-                            m_SceneView = sceneView;
-                            m_SceneView.Activate(true);
-                            m_SceneView.StateRequired += OnStateRequired;
-                            return;
-                        }
-                    }
-                }
-            }
-        }
+        var activatingTime = 5f;
         
-        throw new Exception("Scene view was not found on " + sceneIndex.ToString());
-    }
+        while (true)
+        {
+            if(m_SceneViews.TryGetValue(index, out var sceneView))
+            {
+                if (m_SceneView != null)
+                { 
+                    m_SceneView.StateRequired -= OnStateRequired;
+                    m_SceneView.Activate(false);
+                }
 
+                m_SceneView = sceneView;
+                m_SceneView.Activate(true);
+                m_SceneView.StateRequired += OnStateRequired;
+                callback.Invoke();
+            }
+            
+            yield return new WaitForSeconds(1);
+            activatingTime--;
+
+            if(activatingTime < 0)
+                throw new Exception("Can't activating scene by index" + sceneIndex.ToString());
+        }
+    }
 
     private void SceneLoad(SceneIndex sceneIndex, Action callback)
     {
-        var index = (int)sceneIndex;
-        
-        if (m_ScenesLoaded.Count > 0)
-        {
-            foreach (var scene in m_ScenesLoaded.Values)
-            {
-                if (scene.buildIndex == index)
-                {
-                    callback.Invoke();
-                    return;
-                }
-            }
-        }
-
-
         StopCoroutine(SceneLoadAsync(sceneIndex, callback));
         StartCoroutine(SceneLoadAsync(sceneIndex, callback));
     }
@@ -101,6 +92,20 @@ public class Session : MonoBehaviour
     private IEnumerator SceneLoadAsync(SceneIndex sceneIndex, Action callback)
     {
         var index = (int)sceneIndex;
+        Scene scene;
+
+        var sceneNumber = SceneManager.sceneCount;
+        for (int i = 0; i < sceneNumber; i++)
+        {
+            scene = SceneManager.GetSceneAt(i);
+            if (scene.buildIndex == index)
+            { 
+                m_Scenes.Add(scene.buildIndex, scene);
+                callback.Invoke();
+                yield return null;
+            }
+        }
+
 
         var loading = SceneManager.LoadSceneAsync(index, LoadSceneMode.Additive);
 
@@ -114,8 +119,8 @@ public class Session : MonoBehaviour
                 throw new Exception("Can't loading scene by index" + sceneIndex.ToString());
         }
 
-        var scene = SceneManager.GetSceneByBuildIndex(index);
-        m_ScenesLoaded.Add(scene.buildIndex, scene);
+        scene = SceneManager.GetSceneAt(index);
+        m_Scenes.Add(scene.buildIndex, scene);
         callback.Invoke();
 
     }
@@ -134,20 +139,28 @@ public class Session : MonoBehaviour
             switch (m_State)
             {
                 case StateIndex.MenuLoading:
-                    SceneLoad(SceneIndex.Menu, () => SetState(StateIndex.MenuRun));
+                    SceneLoad(SceneIndex.Menu, () => SetState(StateIndex.MenuActivating));
+                    break;
+                
+                case StateIndex.MenuActivating:
+                    SceneActivate(SceneIndex.Menu, () => SetState(StateIndex.MenuRun));
                     break;
 
                 case StateIndex.MenuRun:
-                    SceneActivate(SceneIndex.Menu);
+                    Debug.Log("Current state " + m_State);
                     break;
 
                 case StateIndex.LevelLoading:
  
-                    SceneLoad(SceneIndex.Level, () => SetState(StateIndex.LevelRun));
+                    SceneLoad(SceneIndex.Level, () => SetState(StateIndex.LevelActivating));
+                    break;
+
+                case StateIndex.LevelActivating:
+                    SceneActivate(SceneIndex.Level, () => SetState(StateIndex.LevelRun));
                     break;
 
                 case StateIndex.LevelRun:
-                    SceneActivate(SceneIndex.Level);
+                    Debug.Log("Current state " + m_State);
                     break;
                 
                 default:
@@ -166,9 +179,31 @@ public class Session : MonoBehaviour
 
 
     }
+   
     private void OnStateRequired(StateIndex state)
     {
         SetState(state);
+    }
+
+    private void OnViewLoaded(IView view)
+    {
+        if (view is ISceneView)
+        {
+            var sceneView = (ISceneView)view;
+            var sceneIndex = (int)sceneView.SceneIndex;
+            m_SceneViews.Add(sceneIndex, sceneView);
+        }
+        
+    }
+
+    private void OnViewUnloaded(IView view)
+    {
+        if (view is ISceneView)
+        {
+            var sceneView = (ISceneView)view;
+            var sceneIndex = (int)sceneView.SceneIndex;
+            m_SceneViews.Remove(sceneIndex);
+        }
     }
 
 }
@@ -177,8 +212,10 @@ public enum StateIndex
 { 
     None,
     MenuLoading,
+    MenuActivating,
     MenuRun,
     LevelLoading,
+    LevelActivating,
     LevelRun
 }
 
